@@ -57,9 +57,10 @@ for name, fname, old, new in MUTATIONS:
     f.write_text(text.replace(old, new, 1), encoding="utf-8")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(tmp) + os.pathsep + env.get("PYTHONPATH", "")
-    r = subprocess.run([sys.executable, "-W", "ignore", str(REPO / "tests" / "redteam_1_need.py")], capture_output=True, text=True, env=env, timeout=600)
-    print(("killed   " if r.returncode != 0 else "SURVIVED ") + name, flush=True)
-    if r.returncode == 0:
+    codes = [subprocess.run([sys.executable, "-W", "ignore", str(REPO / "tests" / t)], capture_output=True, text=True, env=env, timeout=600, cwd=str(REPO / "tests")).returncode
+             for t in ("redteam_1_need.py", "redteam_2_guards.py")]
+    print(("killed   " if any(codes) else "SURVIVED ") + name, flush=True)
+    if not any(codes):
         survivors.append(name)
     shutil.rmtree(tmp, ignore_errors=True)
 print("survivors:", survivors or "none")
