@@ -2,6 +2,15 @@
 
 ![vega-proof-of-need-sdk](assets/tile.svg)
 
+<!-- vega-install-order -->
+> **Build order: 5/5. This kit needs 4 other Vega kits installed first.** Install them in this order, then this one:
+> 1/5 `vega-custody-sdk`  
+> 2/5 `vega-governance-jacket-sdk`  
+> 3/5 `vega-identity-sdk`  
+> 4/5 `vega-superproof-sdk`  
+> 5/5 `vega-proof-of-need-sdk` (this kit)
+> Install each with `pip install --no-deps git+https://github.com/jasonblasiak868-code/<name>` in the order shown, plus `pip install cryptography`. Full steps: [INTEGRATION_GUIDE](https://github.com/jasonblasiak868-code/vega-umbrella-sdk/blob/main/INTEGRATION_GUIDE.md).
+
 Proof of need and proof of payment: a constitution co-signed by every party, an advisory need analysis, human-approved releases from a SIMULATED bankroll, institution receipts, disputes, and privacy-preserving proof of income.
 
 > **Licensing.** Source-available, not open source. Free for personal use; free for registered small businesses (under US$1M revenue and valuation); everyone else needs a commercial license (see LICENSE; for a commercial license write to jasonblasiak.ai.mail@gmail.com). Patent pending. Draft licence text, not yet reviewed by an attorney.
