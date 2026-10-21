@@ -14,9 +14,11 @@ THE FLOW
   dispute / resolve  per the constitution: both parties sign, or the named arbiter signs.
 NOT BUILT: the freedom experiments (they would collect children's behaviour data: needs a consent and privacy model first) and the saving-and-investing mechanic (securities territory).
 State lives in this object; a real system needs durable storage and the legal structure above."""
+import functools
 import hashlib
 import json
 import re
+import threading
 import time
 
 from vega_custody.dag.dag import DagError
@@ -43,6 +45,16 @@ def _cents(v, name):
     return v
 
 
+def _atomic(fn):
+    """Every operation that checks and then changes the book runs alone: a check ('already released?', 'nonce unused?', 'within the monthly cap?') and the change that follows it are
+    one step. Without this, concurrent calls could release one request twice, credit one deposit twice, or pass the cap together."""
+    @functools.wraps(fn)
+    def inner(self, *a, **k):
+        with self._lock:
+            return fn(self, *a, **k)
+    return inner
+
+
 class NeedBook:
     def __init__(self, dag, record: C.Record, institutions=None, clock=time.time, commit=None, real_money: bool = False, analyzer=None, analyzer_name: str = "custom"):
         if real_money:
@@ -50,6 +62,7 @@ class NeedBook:
         if not isinstance(record, C.Record) or not record.active:
             raise NeedRefused("the constitution is not active: every party must sign it first")
         self.dag, self.record, self._clock, self.commit = dag, record, clock, commit
+        self._lock = threading.RLock()
         self.doc = record.doc
         self.institutions = {}
         for iid, pub in (institutions or {}).items():
@@ -84,6 +97,7 @@ class NeedBook:
         return int(self._clock() // MONTH)
 
     # ---- money in (simulated) -----------------------------------------------------------------------------------------
+    @_atomic
     def deposit(self, party_id, cents, nonce, sig):
         p = self._party(party_id)
         _cents(cents, "cents")
@@ -96,6 +110,7 @@ class NeedBook:
         self.balance += cents
 
     # ---- requests -----------------------------------------------------------------------------------------------------------
+    @_atomic
     def submit(self, party_id, category, amount_cents, payee, purpose, evidence, nonce, sig) -> str:
         p = self._party(party_id)
         cat = self.doc["categories"].get(category) if isinstance(category, str) else None
@@ -132,6 +147,7 @@ class NeedBook:
                               "flags_sha": _sha(result["flags"]), "approvals": {}, "declines": set(), "state": "submitted", "submitted_at": self._clock(), "release": None, "resolved": None}
         return rid
 
+    @_atomic
     def approve(self, request_id, party_id, sig):
         r, p = self._req(request_id), self._party(party_id)
         cat = self.doc["categories"][r["category"]]
@@ -146,6 +162,7 @@ class NeedBook:
         self._event("NEED_APPROVAL", request=request_id, party=party_id)
         r["approvals"][party_id] = sig
 
+    @_atomic
     def decline(self, request_id, party_id, sig):
         r, p = self._req(request_id), self._party(party_id)
         cat = self.doc["categories"][r["category"]]
@@ -187,6 +204,7 @@ class NeedBook:
         r["release"] = {"via": via, "at": self._clock(), "paid": False}
         self.releases[rid] = r
 
+    @_atomic
     def release(self, request_id, signed=None):
         r = self._req(request_id)
         if r["state"] not in ("submitted", "resolved_approved"):
@@ -207,6 +225,7 @@ class NeedBook:
             params = {"commit_entry": out["entry"]}
         self._do_release(request_id, r, "approval", params)
 
+    @_atomic
     def safety_net_release(self, request_id):
         r = self._req(request_id)
         sn = self.doc["safety_net"]
@@ -224,6 +243,7 @@ class NeedBook:
         self._do_release(request_id, r, "safety_net", {})
 
     # ---- proof of payment -----------------------------------------------------------------------------------------------------------
+    @_atomic
     def proof_of_payment(self, request_id, institution, receipt_hash, at, sig) -> bool:
         r = self._req(request_id)
         rel = r["release"]
@@ -248,6 +268,7 @@ class NeedBook:
         return sorted(rid for rid, r in self.releases.items() if not r["release"]["paid"] and now - r["release"]["at"] >= after_seconds)
 
     # ---- disputes ---------------------------------------------------------------------------------------------------------------------------
+    @_atomic
     def dispute(self, request_id, party_id, reason, sig):
         r, p = self._req(request_id), self._party(party_id)
         if r["state"] != "declined":
@@ -259,6 +280,7 @@ class NeedBook:
         self._event("NEED_DISPUTE", request=request_id, reason_sha256=hashlib.sha256(reason.encode()).hexdigest())
         r["state"] = "disputed"
 
+    @_atomic
     def resolve(self, request_id, outcome, sigs: dict):
         r = self._req(request_id)
         if r["state"] != "disputed":

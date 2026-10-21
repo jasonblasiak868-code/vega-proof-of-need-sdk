@@ -13,7 +13,7 @@ Proof of need and proof of payment: a constitution co-signed by every party, an 
 | Version | 0.1.0 |
 | Python | >=3.10 |
 | Dependencies | cryptography>=42, vega-custody-sdk, vega-governance-jacket-sdk, vega-superproof-sdk, vega-identity-sdk |
-| Tests | 25 tests in 1 file (redteam_1_need.py), all passing |
+| Tests | 32 tests in 3 files (redteam_1_need.py), all passing |
 | Mutation survivors | 4 (decline blocks release, released once, human commitment required, safety net institutions) |
 | Status | BUILT: constitution, analysis, book, income. DESIGNED ONLY: freedom experiments, saving/investing mechanic, durable storage, real-money legal structure |
 

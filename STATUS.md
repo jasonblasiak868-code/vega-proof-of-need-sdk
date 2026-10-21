@@ -7,7 +7,7 @@
 - book
 - income
 
-Tests: 25 tests in 1 files, all passing.
+Tests: 32 tests in 3 files, all passing.
 
 ## DESIGNED ONLY (not built)
 

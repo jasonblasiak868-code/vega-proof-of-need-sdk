@@ -219,7 +219,7 @@ Dependencies point down layers only (custody=0, jacket=1, superproof=2, identity
 
 A third party can verify conformance by:
 1. Installing the SDK and its declared dependencies.
-2. Running `python -m unittest tests.redteam_1_need -v` — all 25 tests must pass.
+2. Running `python -m unittest tests.redteam_1_need -v` — all 32 tests must pass.
 3. Running the mutation test: `python tests/mutations_need.py` — 0 survivors expected for a fully mutation-resistant build (currently 4 survivors documented).
 
 **What passing means**: The reference implementation behaves as specified for the tested scenarios (constitution lifecycle, analysis rules, book flow, income proofs). The guarantees in §4 hold for the code paths exercised by the tests.
