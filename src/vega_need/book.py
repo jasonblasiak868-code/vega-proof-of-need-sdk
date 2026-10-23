@@ -226,7 +226,7 @@ class NeedBook:
         self._do_release(request_id, r, "approval", params)
 
     @_atomic
-    def safety_net_release(self, request_id):
+    def safety_net_release(self, request_id, signed=None):
         r = self._req(request_id)
         sn = self.doc["safety_net"]
         if not sn["enabled"] or r["category"] not in sn["categories"]:
@@ -240,7 +240,16 @@ class NeedBook:
         if r["amount"] > sn["max_cents"]:
             raise NeedRefused("above the safety-net maximum")
         self._check_release(r, "safety_net")
-        self._do_release(request_id, r, "safety_net", {})
+        params = {}
+        if self.commit is not None:                       # a book that needs the owner's human commitment for spend_funds needs it here too: unreachable approvers are not the owner
+            if signed is None:
+                raise NeedRefused("this book needs the device owner's human commitment for spend_funds, also for a safety-net release")
+            try:
+                out = self.commit.commit(RELEASE_ACTION, {"request": request_id, "amount_cents": r["amount"], "payee": r["payee"]}, signed, route="human")
+            except CommitRefused as exc:
+                raise NeedRefused("the human commitment was refused: %s" % exc) from exc
+            params = {"commit_entry": out["entry"]}
+        self._do_release(request_id, r, "safety_net", params)
 
     # ---- proof of payment -----------------------------------------------------------------------------------------------------------
     @_atomic
@@ -288,6 +297,8 @@ class NeedBook:
         if outcome not in ("reverse_decline", "uphold"):
             raise NeedRefused("outcome is reverse_decline or uphold")
         dp = self.doc["dispute"]
+        if dp["method"] == "arbiter" and dp["arbiter"] == r["party"]:
+            raise NeedRefused("the requester cannot be the arbiter of their own dispute")
         needed = {dp["arbiter"]} if dp["method"] == "arbiter" else ({r["party"]} | set(r["declines"]))
         if not isinstance(sigs, dict) or not needed <= set(sigs) or not all(C.verify(self._party(pid)["public"], "RESOLVE", "%s|%s" % (request_id, outcome), sigs[pid]) for pid in needed):
             raise NeedRefused("the resolution is not signed by everyone the constitution requires")
